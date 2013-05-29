@@ -66,5 +66,13 @@ function drush_instance_build_validate($alias) {
  */
 function drush_instance_build($alias) {
   $alias_info = drush_get_context("DRUSH_INSTANCE");
+
+  $makefile_dir = make_download_git(
+    'Instance makefile',
+    array('url' => $alias_info['instance']['repos']['makefile']),
+    'makefile'
+  );
+
+  drush_log("Makefile $makefile_dir", "ok");
   drush_log("Finished $alias!", "ok");
 }
