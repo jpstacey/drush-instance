@@ -43,7 +43,7 @@ function drush_instance_build_validate($alias) {
             && array_key_exists('repos', $alias_info['instance'])
             && array_key_exists('makefile', $alias_info['instance']['repos'])
          )) {
-    drush_set_error("DRUSH_INSTANCE_GIT_REPO_MAKEFILE", "No makefile git repository specified for $alias");
+    drush_set_error("DRUSH_INSTANCE_GIT_REPO_MAKEFILE", "No makefile git repository specified for $alias: you should specify \$alias['instance']['repos']['makefile']");
   }
 
   // If there's an error by this point, we shouldn't continue
