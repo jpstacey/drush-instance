@@ -48,7 +48,7 @@ function drush_instance_build_validate($alias) {
             && array_key_exists('repos', $alias_info['instance'])
             && array_key_exists('makefile', $alias_info['instance']['repos'])
          )) {
-    drush_set_error("DRUSH_INSTANCE_GIT_REPO_MAKEFILE", "No makefile git repository specified for $alias: you should specify \$alias['instance']['repos']['makefile']");
+    drush_set_error("DRUSH_INSTANCE_GIT_REPO_MAKEFILE", "No makefile git repository specified for $alias: you should specify \$alias['instance']['repos']['makefile'] as a makefile-like git repository definition");
   }
 
   // If there's an error by this point, we shouldn't continue
@@ -84,19 +84,33 @@ function drush_instance_build($alias) {
   $makefile_tmp = "$master_tmp/makefile";
   make_download_git(
     'Instance makefile',
-    array('url' => $alias_info['instance']['repos']['makefile']),
+    $alias_info['instance']['repos']['makefile'],
     $makefile_tmp
   );
   $makefile_location = "$makefile_tmp/" . $alias_info['instance']['makefile_path'];
   if(!file_exists($makefile_location)) {
-    return drush_error("DRUSH_INSTANCE_MAKEFILE_NONE", "Makefile not present in repository.");
+    return drush_set_error("DRUSH_INSTANCE_MAKEFILE_NONE", "Makefile not present in repository.");
   }
 
   // Make site
   drush_log("Making site", "notice");
-  $site_tmp = "$master_tmp/site";
-  drush_log($site_tmp, "ok");
+  // Drush make uses make_tmp() and doesn't play nicely (directory name
+  // collisions, and it seems it deletes everything when it's done)
+  // So generate our own temporary location
+  $site_tmp = drush_find_tmp() . "/drush_instance_tmp_" . time() . '_' . uniqid();
+  if (!drush_get_option('no-clean', FALSE)) {
+    drush_register_file_for_deletion($site_tmp);
+  }
   drush_invoke('make', array($makefile_location, $site_tmp));
+
+  // Do the rest
+  drush_log("Need to build everything in between", "warning");
+
+  // Finally, move it to the site alias root
+  $ret = drush_move_dir($site_tmp, $alias_info['root'], FALSE);
+  if (!$ret) {
+    drush_set_error("Cannot move instance into site alias location");
+  }
 
   drush_log("Finished $alias!", "ok");
 }
