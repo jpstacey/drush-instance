@@ -78,6 +78,9 @@ function drush_instance_build_validate($alias) {
 function drush_instance_build($alias) {
   $alias_info = drush_get_context("DRUSH_INSTANCE");
 
+  // Check to see if site exists
+  drush_log("TODO: check in advance if site exists, ask y/n etc.", "warning");
+
   // Try to find makefile
   drush_log("Looking for makefile", "notice");
   $master_tmp = make_tmp();
@@ -104,7 +107,13 @@ function drush_instance_build($alias) {
   drush_invoke('make', array($makefile_location, $site_tmp));
 
   // Do the rest
-  drush_log("Need to build everything in between", "warning");
+  drush_log("TODO: get sites/default, either from makefile repos or elsewhere", "warning");
+  drush_log("TODO: move over any specified files or file aliases, including %files etc.", "warning");
+  drush_log("TODO: sort out file permissions", "warning");
+  drush_log("TODO: create a local-settings.php if specified", "warning");
+  drush_log("TODO: render some templates: vhost, crontab etc.", "warning");
+  drush_log("TODO: maybe rsync db (and files?) from another site alias", "warning");
+  drush_log("TODO: anonymizing live db?", "warning")
 
   // Finally, move it to the site alias root
   $ret = drush_move_dir($site_tmp, $alias_info['root'], FALSE);
