@@ -111,8 +111,19 @@ function drush_instance_build($alias) {
   }
   drush_invoke('make', array($makefile_location, $site_tmp));
 
+
+  // Replace sites/default with repository specified, defaulting to
+  // the makefile repository (see validation hook)
+  $sites_default = "$site_tmp/sites/default";
+  drush_delete_dir($sites_default);
+  make_download_git(
+    'Instance makefile',
+    $alias_info['instance']['repos']['sites_default'],
+    $sites_default
+  );
+  drush_log("Replaced sites/default with repository", "ok");
+
   // Do the rest
-  drush_log("TODO: get sites/default, either from makefile repos or elsewhere", "warning");
   drush_log("TODO: move over any specified files or file aliases, including %files etc.", "warning");
   drush_log("TODO: sort out file permissions", "warning");
   drush_log("TODO: create a local-settings.php if specified", "warning");
