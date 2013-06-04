@@ -113,7 +113,7 @@ function drush_instance_build($alias) {
   drush_log("TODO: create a local-settings.php if specified", "warning");
   drush_log("TODO: render some templates: vhost, crontab etc.", "warning");
   drush_log("TODO: maybe rsync db (and files?) from another site alias", "warning");
-  drush_log("TODO: anonymizing live db?", "warning")
+  drush_log("TODO: anonymizing live db?", "warning");
 
   // Finally, move it to the site alias root
   $ret = drush_move_dir($site_tmp, $alias_info['root'], FALSE);
