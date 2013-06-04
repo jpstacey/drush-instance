@@ -51,6 +51,11 @@ function drush_instance_build_validate($alias) {
     drush_set_error("DRUSH_INSTANCE_GIT_REPO_MAKEFILE", "No makefile git repository specified for $alias: you should specify \$alias['instance']['repos']['makefile'] as a makefile-like git repository definition");
   }
 
+  // Check whether or not the site exists
+  if (file_exists($alias_info['root'])) {
+    drush_set_error("DRUSH_INSTANCE_ALREADY_EXISTS", "Instance $alias already exists at " . $alias_info['root']);
+  }
+
   // If there's an error by this point, we shouldn't continue
   if (drush_get_error() == DRUSH_FRAMEWORK_ERROR) {
     return;
