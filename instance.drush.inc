@@ -84,7 +84,7 @@ function drush_instance_build($alias) {
   $alias_info = drush_get_context("DRUSH_INSTANCE");
 
   // Check to see if site exists
-  drush_log("TODO: check in advance if site exists, ask y/n etc.", "warning");
+  drush_log("TODO: ask if we want to delete the existing site [y/n]", "warning");
 
   // Try to find makefile
   drush_log("Looking for makefile", "notice");
