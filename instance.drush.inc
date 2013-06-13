@@ -156,10 +156,21 @@ function drush_instance_test() {
   // Bring in @instance.local, but fiddle with its root directory
   drush_sitealias_get_record('@instance.local');
   $aliases =& drush_get_context('site-aliases');
-  $aliases['@instance.local']['root'] = _drush_instance_tmp_unique();
+  $aliases['@instance.local']['root'] = $site_root = _drush_instance_tmp_unique();
 
   // Now invoke instance-build
   drush_invoke('instance-build', array('@instance.local'));
+
+  // Tests:
+  // 1. Drupal 7.21 downloaded
+  if (file_exists("$site_root/CHANGELOG.txt") &&
+     strpos(file_get_contents("$site_root/CHANGELOG.txt"),"Drupal 7.21, 2013-03-06") !== false) {
+    drush_log("Found Drupal 7.21 CHANGELOG.txt", "success");
+  }
+  else {
+    return drush_log("Cannot find Drupal 7.21 CHANGELOG.txt", "error");
+  }
+  // 2. sites/default is git repos and contains what we expect
 }
 
 /**
