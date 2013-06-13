@@ -20,6 +20,10 @@ function instance_drush_help($section) {
  */
 function instance_drush_command() {
   $items = array();
+  $items['instance-test'] = array(
+    'description' => 'Test instance-build works',
+    'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
+  );
   $items['instance-build'] = array(
     'description' => 'Build a site instance from a site alias',
     'arguments' => array(
@@ -137,5 +141,37 @@ function drush_instance_build($alias) {
     drush_set_error("Cannot move instance into site alias location");
   }
 
-  drush_log("Finished $alias!", "ok");
+  drush_log(dt("Finished !alias: deployed to !root",
+               array("!alias" => $alias, "!root" => $alias_info['root'])),
+            "ok");
+}
+
+/**
+ * Implements drush_hook().
+ */
+function drush_instance_test() {
+  // Include our test aliases
+  drush_set_context('ALIAS_PATH', array(dirname(__FILE__) . '/tests'));
+
+  // Bring in @instance.local, but fiddle with its root directory
+  drush_sitealias_get_record('@instance.local');
+  $aliases =& drush_get_context('site-aliases');
+  $aliases['@instance.local']['root'] = _drush_instance_tmp_unique();
+
+  // Now invoke instance-build
+  drush_invoke('instance-build', array('@instance.local'));
+}
+
+/**
+ * Make a unique temporary folder to avoid between-command collisions
+ */
+function _drush_instance_tmp_unique() {
+  // Drush make uses make_tmp() and doesn't play nicely (directory name
+  // collisions, and it seems it deletes everything when it's done)
+  // So generate our own temporary location
+  $site_tmp = drush_find_tmp() . "/drush_instance_tmp_" . time() . '_' . uniqid();
+  if (!drush_get_option('no-clean', FALSE)) {
+    drush_register_file_for_deletion($site_tmp);
+  }
+  return $site_tmp;
 }
