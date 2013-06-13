@@ -2,7 +2,7 @@ Drush instance
 ==============
 
 Sitealias-driven drush-making of local development instances and live
-production instances. Your entire build procedure can be reduced to:
+production instances. Building an instance should only ever require:
 
 * A sites/default repository
 * A Drush makefile (which could go in the above)
@@ -19,8 +19,9 @@ what's specified in the makefile but goes no further. What else does a
 local site build need? Well:
 
 * A sites/default containing your instance's custom code
-* Files, possibly synced from live
-* A database from somewhere
+* A relevant settings.php file
+* Uploaded assets in your files directory (possibly synced from live)
+* A database from somewhere (possibly ditto)
 * Templates to use for e.g. vhost, crontab entries etc.
 
 And if you want to redeploy your local instance, to clear out cruft or
