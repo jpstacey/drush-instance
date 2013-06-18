@@ -29,6 +29,10 @@ function instance_drush_command() {
     'arguments' => array(
       'alias' => 'Site alias for the local build target',
     ),
+    'options' => array(
+      'rebuild' => 'Build over an existing instance, preserving e.g. sites/files if configured in site alias',
+    ),
+
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
   );
 

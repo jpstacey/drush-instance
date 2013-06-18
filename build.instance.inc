@@ -27,7 +27,14 @@ function drush_instance_build_validate($alias) {
 
   // Check whether or not the site exists
   if (file_exists($alias_info['root'])) {
-    drush_set_error("DRUSH_INSTANCE_ALREADY_EXISTS", "Instance $alias already exists at " . $alias_info['root']);
+    // This is OK, if rebuild is specified
+    if (!drush_get_option('rebuild')) {
+      drush_set_error("DRUSH_INSTANCE_ALREADY_EXISTS", "Instance $alias already exists at " . $alias_info['root']);
+    }
+  }
+  // If rebuild IS specified, but there's no existing build, raise error
+  elseif (drush_get_option('rebuild')) {
+    drush_set_error("DRUSH_INSTANCE_ALREADY_EXISTS", "Instance $alias does not exist at " . $alias_info['root'] . "; cannot rebuild");
   }
 
   // If there's an error by this point, we shouldn't continue
@@ -56,9 +63,7 @@ function drush_instance_build_validate($alias) {
  */
 function drush_instance_build($alias) {
   $alias_info = drush_get_context("DRUSH_INSTANCE");
-
-  // Check to see if site exists
-  drush_log("TODO: ask if we want to delete the existing site [y/n]", "warning");
+  $rebuild = (bool)drush_get_option('rebuild');
 
   // Try to find makefile
   drush_log("Looking for makefile", "notice");
@@ -83,8 +88,11 @@ function drush_instance_build($alias) {
   if (!drush_get_option('no-clean', FALSE)) {
     drush_register_file_for_deletion($site_tmp);
   }
+  // Unset any of our options
+  foreach(array('rebuild') as $option) {
+    drush_unset_option($option);
+  }
   drush_invoke('make', array($makefile_location, $site_tmp));
-
 
   // Replace sites/default with repository specified, defaulting to
   // the makefile repository (see validation hook)
@@ -106,9 +114,20 @@ function drush_instance_build($alias) {
   drush_log("TODO: anonymizing live db?", "warning");
 
   // Finally, move it to the site alias root
+  // If this is a rebuild, then there will be an existing file root
+  if($rebuild) {
+    // Move it to one side and report success or failure
+    $old_dir = $alias_info['root'] . '-old-' . rand(1, 99999);
+    $ret = drush_move_dir($alias_info['root'], $old_dir);
+    if (!$ret) {
+      return drush_set_error("Cannot move existing instance aside in order to rebuild");
+    }
+    drush_log("Moved existing instance aside to $old_dir", "ok");
+  }
+  // Now move new build into place
   $ret = drush_move_dir($site_tmp, $alias_info['root'], FALSE);
   if (!$ret) {
-    drush_set_error("Cannot move instance into site alias location");
+    return drush_set_error("Cannot move instance into site alias location");
   }
 
   drush_log(dt("Finished !alias: deployed to !root",
