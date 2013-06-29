@@ -53,16 +53,59 @@ function drush_instance_build_validate($alias) {
     $alias_info['instance']['repos']['sites_default'] =
       $alias_info['instance']['repos']['makefile'];
   }
+  // Path specifications
+  if (!array_key_exists('paths', $alias_info['instance'])) {
+    $alias_info['instance']['paths'] = array();
+  }
+  // Rebuild-specific validation
+  if (drush_get_option('rebuild')) {
+    _drush_instance_build_validate_rebuild($alias_info);
+  }
 
   // Save the site alias in context for use in the actual command
   drush_set_context("DRUSH_INSTANCE", $alias_info);
 }
 
 /**
+ * Rebuild-specific validation
+ */
+function _drush_instance_build_validate_rebuild(&$alias_info) {
+  if (!array_key_exists('preserve_on_rebuild', $alias_info['instance']['paths'])) {
+    // Don't have any? Can we at least preserve %files?
+    if(array_key_exists('path-aliases', $alias_info) 
+       && array_key_exists('%files', $alias_info['path-aliases'])) {
+      $alias_info['instance']['preserve_on_rebuild'] = array($alias_info['path-aliases']['%files']);
+      drush_log("I won't rebuild a site without preserving %files unless you explicitly tell me to, so I've added that to the list now", "ok");
+    }
+    // Otherwise, just warn the user. This warning can be suppressed
+    // by creating an empty array of preserve_on_rebuild files, thus
+    // explicitly stating "no preserve_on_rebuild required"
+    else {
+      drush_log("There are no paths configured to preserve_on_rebuild: any non-Drupal paths INCLUDING FILES will be left behind.", "warning");
+    }
+  }
+  // Replace any path aliases e.g. %files
+  foreach($alias_info['instance']['paths']['preserve_on_rebuild'] as $k => $path) {
+    if (array_key_exists($path, $alias_info['path-aliases'])) {
+      $alias_info['instance']['paths']['preserve_on_rebuild'][$k]
+        = $alias_info['path-aliases'][$path];
+    }
+  }
+  // And now check those files exist!
+  foreach($alias_info['instance']['paths']['preserve_on_rebuild'] as $path) {
+    if (!file_exists($alias_info['root'] . "/$path")) {
+      drush_log("Cannot preserve on rebuild as does not exist: $path", "warning");
+    }
+  }
+}
+
+/**
  * Implements drush_hook().
  */
 function drush_instance_build($alias) {
+  // Get all the config we'll need first
   $alias_info = drush_get_context("DRUSH_INSTANCE");
+  $instance = $alias_info['instance'];
   $rebuild = (bool)drush_get_option('rebuild');
 
   // Try to find makefile
@@ -71,10 +114,10 @@ function drush_instance_build($alias) {
   $makefile_tmp = "$master_tmp/makefile";
   make_download_git(
     'Instance makefile',
-    $alias_info['instance']['repos']['makefile'],
+    $instance['repos']['makefile'],
     $makefile_tmp
   );
-  $makefile_location = "$makefile_tmp/" . $alias_info['instance']['makefile_path'];
+  $makefile_location = "$makefile_tmp/" . $instance['makefile_path'];
   if(!file_exists($makefile_location)) {
     return drush_set_error("DRUSH_INSTANCE_MAKEFILE_NONE", "Makefile not present in repository.");
   }
@@ -100,13 +143,12 @@ function drush_instance_build($alias) {
   drush_delete_dir($sites_default);
   make_download_git(
     'Instance makefile',
-    $alias_info['instance']['repos']['sites_default'],
+    $instance['repos']['sites_default'],
     $sites_default
   );
   drush_log("Replaced sites/default with repository", "ok");
 
   // Do the rest
-  drush_log("TODO: move over any specified files or file aliases, including %files etc.", "warning");
   drush_log("TODO: sort out file permissions", "warning");
   drush_log("TODO: create a local-settings.php if specified", "warning");
   drush_log("TODO: render some templates: vhost, crontab etc.", "warning");
@@ -124,13 +166,51 @@ function drush_instance_build($alias) {
     }
     drush_log("Moved existing instance aside to $old_dir", "ok");
   }
-  // Now move new build into place
+
+  // Move new build into place
   $ret = drush_move_dir($site_tmp, $alias_info['root'], FALSE);
   if (!$ret) {
     return drush_set_error("Cannot move instance into site alias location");
   }
+  drush_log("Moved new instance in place at " . $alias_info['root'], "ok");
 
+  // Now move all preserved files over: we do this as late
+  // as possible to avoid e.g. moving large filetrees across partitions,
+  // as we can assume that e.g. /var/www/* is all on one partition (?)
+  // but the same can't be said for e.g. /tmp
+  if ($rebuild) {
+    foreach($instance['paths']['preserve_on_rebuild'] as $path) {
+      $full_old_path = "$old_dir/$path";
+      $full_new_path = $alias_info['root'] . "/$path";
+      // Check all directories on new path exist, not including the last bit
+      $check_path = "/";
+      foreach(split("/", $full_new_path) as $new_path_part) {
+        if(!file_exists($check_path) && !drush_mkdir($check_path)) {
+          $some_paths_not_preserved = TRUE;
+          drush_log("Could not create all subdirectories required to preserve $path", "warning");
+          break 2;
+        }
+        $check_path .= "/$new_path_part";
+      }
+      // Again, to avoid replicating large files, we should use rename() - 
+      // drush_move_dir() actually copies the contents
+      if($ret) {
+        $ret = @drush_op('rename', $full_old_path, $full_new_path);
+      }
+      if (!$ret) {
+        $some_paths_not_preserved = TRUE;
+        drush_log("Could not move $path to new build", "warning");
+      }
+      else {
+        drush_log("Moved $path to new build", "ok");
+      }
+    }
+  }
+
+  if ($some_paths_not_preserved) {
+    return drush_set_error("Your codebase has been rebuilt, but some paths could not be moved into it. It could therefore be in a partially built state, so please check the error log above.");
+  }
   drush_log(dt("Finished !alias: deployed to !root",
-               array("!alias" => $alias, "!root" => $alias_info['root'])),
+            array("!alias" => $alias, "!root" => $alias_info['root'])),
             "ok");
 }

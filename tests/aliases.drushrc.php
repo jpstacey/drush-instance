@@ -17,6 +17,13 @@ $aliases['instance.local'] = array(
         ),
       ),
       'makefile_path' => 'core.make',
+
+      'paths' => array(
+        'preserve_on_rebuild' => array(
+          '%files',
+          'some_random_toplevel_file.txt',
+        ),
+      ),
     ),
 );
 

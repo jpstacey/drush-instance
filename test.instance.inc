@@ -57,4 +57,6 @@ function drush_instance_test() {
   else {
     return drush_log("Could not detect sites/default git repository to be on master", "error");
   }
+
+  drush_set_error("Need to test that preserve_on_rebuild paths are indeed preserved!");
 }
