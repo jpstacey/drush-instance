@@ -16,13 +16,21 @@ function drush_instance_test() {
   drush_sitealias_get_record('@instance.local');
   $aliases =& drush_get_context('site-aliases');
   $aliases['@instance.local']['root'] = $site_root = _drush_instance_tmp_unique();
+  // Write it out, so that the separate processes can see it
+  drush_mkdir($aliases_dir = _drush_instance_tmp_unique());
+  file_put_contents("$aliases_dir/aliases.drushrc.php",
+    "<?php \$aliases['instance.local'] = " . var_export($aliases['@instance.local'], TRUE) . ";");
 
-  drush_log("RUN : build", "ok");
-  // Now invoke instance-build
-  drush_invoke('instance-build', array('@instance.local'));
+  // Invoke instance-build as a separate process
+  drush_log("RUN : build, as a separate process. Please wait.", "ok");
+  $success = drush_shell_exec("drush instance-build @instance.local --alias-path=$aliases_dir");
+  print join("\n", drush_shell_exec_output()) . "\n";
+  if (!$success) {
+    return drush_set_error("Quitting because of errors in sub-process.");
+  }
 
-  drush_log("TEST: build", "ok");
   // Tests:
+  drush_log("TEST: build", "ok");
   // 1. Drupal 7.21 downloaded
   if (file_exists("$site_root/CHANGELOG.txt") &&
      strpos(file_get_contents("$site_root/CHANGELOG.txt"),"Drupal 7.21, 2013-03-06") !== false) {
@@ -66,14 +74,23 @@ function drush_instance_test() {
   file_put_contents("$site_root/some_random_toplevel_file.txt", 'test');
   drush_mkdir("$site_root/sites/files/core");
 
-  // Now invoke instance-build with --rebuild set
-  drush_log("RUN : rebuild", "ok");
-  drush_set_option('rebuild', TRUE);
-  // Have to get the temp directory recreated too: drush make is overzealous in deletion
-  drush_mkdir(make_tmp());
-  drush_mkdir(make_tmp() . '/__build__');
-  drush_invoke('instance-build', array('@instance.local'));
+  // Invoke instance-build --rebuild as a separate process
+  drush_log("RUN : rebuild, as a separate process. Please wait.", "ok");
+  $success = drush_shell_exec("drush instance-build @instance.local --rebuild --alias-path=$aliases_dir");
+  print join("\n", drush_shell_exec_output()) . "\n";
+  if (!$success) {
+    return drush_set_error("Quitting because of errors in sub-process.");
+  }
 
+  // Tests:
   drush_log("TEST: rebuild", "ok");
-  drush_set_error("Need to test that preserve_on_rebuild paths are indeed preserved!");
+  // 1. Check files preserved
+  foreach(array("sites/files/core", "some_random_toplevel_file.txt") as $path) {
+    if (file_exists("$site_root/$path")) {
+      drush_log("Preserved during rebuild: $path", "success");
+    }
+    else {
+      return drush_set_error("Could not find $path - was it not preserved by rebuild?");
+    }
+  }
 }
