@@ -23,6 +23,9 @@ function instance_drush_command() {
   $items['instance-test'] = array(
     'description' => 'Test instance-build works',
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,
+    'options' => array(
+      'no-clean' => 'No clean',
+    ),
   );
   $items['instance-build'] = array(
     'description' => 'Build a site instance from a site alias',
@@ -31,6 +34,7 @@ function instance_drush_command() {
     ),
     'options' => array(
       'rebuild' => 'Build over an existing instance, preserving e.g. sites/files if configured in site alias',
+      'no-clean' => 'No clean',
     ),
 
     'bootstrap' => DRUSH_BOOTSTRAP_DRUSH,

@@ -109,7 +109,7 @@ function drush_instance_build($alias) {
   $rebuild = (bool)drush_get_option('rebuild');
 
   // Try to find makefile
-  drush_log("Looking for makefile", "notice");
+  drush_log("Looking for makefile", "ok");
   $master_tmp = make_tmp();
   $makefile_tmp = "$master_tmp/makefile";
   make_download_git(
@@ -123,19 +123,21 @@ function drush_instance_build($alias) {
   }
 
   // Make site
-  drush_log("Making site", "notice");
+  drush_log("Making site", "ok");
   // Drush make uses make_tmp() and doesn't play nicely (directory name
   // collisions, and it seems it deletes everything when it's done)
   // So generate our own temporary location
-  $site_tmp = drush_find_tmp() . "/drush_instance_tmp_" . time() . '_' . uniqid();
-  if (!drush_get_option('no-clean', FALSE)) {
-    drush_register_file_for_deletion($site_tmp);
-  }
-  // Unset any of our options
+  $site_tmp = _drush_instance_tmp_unique();
+
+  // Unset any of our possible options
   foreach(array('rebuild') as $option) {
     drush_unset_option($option);
   }
   drush_invoke('make', array($makefile_location, $site_tmp));
+
+  if ($rebuild) {
+    var_dump(glob("$site_tmp"));
+  }
 
   // Replace sites/default with repository specified, defaulting to
   // the makefile repository (see validation hook)
