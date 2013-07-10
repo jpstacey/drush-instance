@@ -19,11 +19,20 @@ $aliases['instance.local'] = array(
       'makefile_path' => 'core.make',
 
       'paths' => array(
-        'preserve_on_rebuild' => array(
-          '%files',
-          'some_random_toplevel_file.txt',
+        '%files' => array(
+          'preserve_on_rebuild' => TRUE,
+          'source' => array(
+            'type' => 'mkdir',
+          ),
+        ),
+        'some_random_toplevel_file.txt' => array(
+          'preserve_on_rebuild' => TRUE,
+          'source' => array(
+            'type' => 'touch',
+          ),
         ),
       ),
+
     ),
 );
 
