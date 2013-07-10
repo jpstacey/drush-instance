@@ -167,6 +167,7 @@ function drush_instance_build($alias) {
   if($rebuild) {
     // Move it to one side and report success or failure
     $old_dir = $alias_info['root'] . '-old-' . rand(1, 99999);
+    $alias_info['_old_dir'] = $old_dir;
     $ret = drush_move_dir($alias_info['root'], $old_dir);
     if (!$ret) {
       return drush_set_error("Cannot move existing instance aside in order to rebuild");
@@ -185,44 +186,67 @@ function drush_instance_build($alias) {
   // as possible to avoid e.g. moving large filetrees across partitions,
   // as we can assume that e.g. /var/www/* is all on one partition (?)
   // but the same can't be said for e.g. /tmp
-  if ($rebuild) {
-    foreach($instance['paths'] as $path => $config) {
-      // Only preserve paths marked as such
-      if (!$config['preserve_on_rebuild']) {
-        continue;
-      }
-      // Shortcut variables for old and new paths
-      $full_old_path = "$old_dir/$path";
-      $full_new_path = $alias_info['root'] . "/$path";
-      // Check all directories on new path exist, not including the last bit
-      $check_path = "/";
-      foreach(split("/", $full_new_path) as $new_path_part) {
-        if(!file_exists($check_path) && !drush_mkdir($check_path)) {
-          $some_paths_not_preserved = TRUE;
-          drush_log("Could not create all subdirectories required to preserve $path", "warning");
-          break 2;
-        }
-        $check_path .= "/$new_path_part";
-      }
-      // Again, to avoid replicating large files, we should use rename() -
-      // drush_move_dir() actually copies the contents
-      if($ret) {
-        $ret = @drush_op('rename', $full_old_path, $full_new_path);
-      }
-      if (!$ret) {
-        $some_paths_not_preserved = TRUE;
-        drush_log("Could not move $path to new build", "warning");
-      }
-      else {
-        drush_log("Moved $path to new build", "ok");
-      }
+  $path_success = TRUE;
+  foreach($instance['paths'] as $path => $config) {
+    $path_success = $path_success && _drush_instance_build_path($alias_info, $path, $config, $rebuild);
+    if (!$path_success) {
+      break;
     }
   }
-
-  if ($some_paths_not_preserved) {
+  if (!$path_success) {
     return drush_set_error("Your codebase has been rebuilt, but some paths could not be moved into it. It could therefore be in a partially built state, so please check the error log above.");
   }
   drush_log(dt("Finished !alias: deployed to !root",
             array("!alias" => $alias, "!root" => $alias_info['root'])),
             "ok");
+}
+
+/**
+ * Generic handler for all paths
+ */
+function _drush_instance_build_path($alias_info, $path, $config, $rebuild) {
+  // Specific handler based on type, or 'rebuild' if that's appropriate
+  $type = $rebuild ? 'rebuild' : $config['source']['type'];
+  $handler = "_drush_instance_build_path_$type";
+  if (!function_exists($handler)) {
+    drush_set_error("No handler method exists for preserving paths of type=$type");
+    return FALSE;
+  }
+  return $handler($alias_info, $path, $config);
+}
+
+/**
+ * Specific handler for rebuild paths
+ */
+function _drush_instance_build_path_rebuild($alias_info, $path, $config) {
+  // Only preserve paths marked as such
+  if (!$config['preserve_on_rebuild']) {
+    return TRUE;
+  }
+
+  // Shortcut variables for old and new paths
+  $full_old_path = $alias_info['_old_dir'] . "/$path";
+  $full_new_path = $alias_info['root'] . "/$path";
+  // Check all directories on new path exist, not including the last bit
+  $check_path = "/";
+  foreach(split("/", $full_new_path) as $new_path_part) {
+  if(!file_exists($check_path) && !drush_mkdir($check_path)) {
+      $some_paths_not_preserved = TRUE;
+      drush_log("Could not create all subdirectories required to preserve $path", "warning");
+      return FALSE;
+    }
+    $check_path .= "/$new_path_part";
+  }
+  // Again, to avoid replicating large files, we should use rename() -
+  // drush_move_dir() actually copies the contents
+
+  // Now, try to move the path!
+  $ret = @drush_op('rename', $full_old_path, $full_new_path);
+  if (!$ret) {
+    drush_log("Could not move $path to new build", "warning");
+  }
+  else {
+    drush_log("Moved $path to new build", "ok");
+  }
+  return $ret;
 }
