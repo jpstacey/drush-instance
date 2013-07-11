@@ -157,7 +157,6 @@ function drush_instance_build($alias) {
 
   // Do the rest
   drush_log("TODO: sort out file permissions", "warning");
-  drush_log("TODO: create a local-settings.php if specified", "warning");
   drush_log("TODO: render some templates: vhost, crontab etc.", "warning");
   drush_log("TODO: maybe rsync db (and files?) from another site alias", "warning");
   drush_log("TODO: anonymizing live db?", "warning");
@@ -227,20 +226,15 @@ function _drush_instance_build_path_rebuild($alias_info, $path, $config) {
   // Shortcut variables for old and new paths
   $full_old_path = $alias_info['_old_dir'] . "/$path";
   $full_new_path = $alias_info['root'] . "/$path";
-  // Check all directories on new path exist, not including the last bit
-  $check_path = "/";
-  foreach(split("/", $full_new_path) as $new_path_part) {
-  if(!file_exists($check_path) && !drush_mkdir($check_path)) {
-      $some_paths_not_preserved = TRUE;
-      drush_log("Could not create all subdirectories required to preserve $path", "warning");
-      return FALSE;
-    }
-    $check_path .= "/$new_path_part";
+
+  // Ensure all directories above this one exist
+  if(!_drush_instance_build_path_containing_dir($full_new_path)) {
+    drush_log("Could not create all subdirectories required to preserve $path", "warning");
+    return FALSE;
   }
+
   // Again, to avoid replicating large files, we should use rename() -
   // drush_move_dir() actually copies the contents
-
-  // Now, try to move the path!
   $ret = @drush_op('rename', $full_old_path, $full_new_path);
   if (!$ret) {
     drush_log("Could not move $path to new build", "warning");
@@ -249,4 +243,52 @@ function _drush_instance_build_path_rebuild($alias_info, $path, $config) {
     drush_log("Moved $path to new build", "ok");
   }
   return $ret;
+}
+
+/**
+ * Specific handler for touch paths
+ */
+function _drush_instance_build_path_touch($alias_info, $path, $config) {
+  // Shortcut variable for new path
+  $full_new_path = $alias_info['root'] . "/$path";
+
+  // Ensure all directories above this one exist
+  if(!_drush_instance_build_path_containing_dir($full_new_path)) {
+    drush_log("Could not create all subdirectories required to set up empty file $path", "warning");
+    return FALSE;
+  }
+
+  return (@file_put_contents($full_new_path, '') !== FALSE);
+}
+
+/**
+ * Specific handler for touch paths
+ */
+function _drush_instance_build_path_mkdir($alias_info, $path, $config) {
+  // Shortcut variable for new path
+  $full_new_path = $alias_info['root'] . "/$path";
+
+  // Ensure all directories above this one exist
+  if(!_drush_instance_build_path_containing_dir($full_new_path)) {
+    drush_log("Could not create all subdirectories required to set up directory $path", "warning");
+    return FALSE;
+  }
+
+  return @drush_mkdir($full_new_path);
+}
+
+/**
+ * Helper function to create all the directories down to a new path, but
+ * not including it
+ */
+function _drush_instance_build_path_containing_dir($full_new_path) {
+  // Check all directories on new path exist, not including the last bit
+  $check_path = "/";
+  foreach(split("/", $full_new_path) as $new_path_part) {
+    if(!file_exists($check_path) && !drush_mkdir($check_path)) {
+      return FALSE;
+    }
+    $check_path .= "/$new_path_part";
+  }
+  return TRUE;
 }

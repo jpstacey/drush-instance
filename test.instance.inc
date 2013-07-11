@@ -70,10 +70,6 @@ function drush_instance_test() {
     return drush_log("Could not detect sites/default git repository to be on master", "error");
   }
 
-  // Now add some files for the instance-rebuild
-  file_put_contents("$site_root/some_random_toplevel_file.txt", 'test');
-  drush_mkdir("$site_root/sites/files/core");
-
   // Invoke instance-build --rebuild as a separate process
   drush_log("RUN : rebuild, as a separate process. Please wait.", "ok");
   $success = drush_shell_exec("drush instance-build @instance.local --rebuild --alias-path=$aliases_dir");
