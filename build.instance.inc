@@ -122,7 +122,7 @@ function drush_instance_build($alias) {
   $master_tmp = make_tmp();
   $makefile_tmp = "$master_tmp/makefile";
   make_download_git(
-    'Instance makefile',
+    'Instance-makefile',
     $instance['repos']['makefile'],
     $makefile_tmp
   );
@@ -148,11 +148,17 @@ function drush_instance_build($alias) {
   // the makefile repository (see validation hook)
   $sites_default = "$site_tmp/sites/default";
   drush_delete_dir($sites_default);
+  // Assume deployed codebase should always be a working copy, so hot-swap a
+  // TRUE value into that drush_get_option before running make_download_git()
+  $old_wc = drush_get_option('working-copy');
+  drush_set_option('working-copy', TRUE);
   make_download_git(
-    'Instance makefile',
+    'Sites-default',
     $instance['repos']['sites_default'],
     $sites_default
   );
+  // Swap the old option for working-copy back in
+  drush_set_option('working-copy', $old_wc);
   drush_log("Replaced sites/default with repository", "ok");
 
   // Do the rest
