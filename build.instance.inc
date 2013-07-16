@@ -161,12 +161,6 @@ function drush_instance_build($alias) {
   drush_set_option('working-copy', $old_wc);
   drush_log("Replaced sites/default with repository", "ok");
 
-  // Do the rest
-  drush_log("TODO: sort out file permissions", "warning");
-  drush_log("TODO: render some templates: vhost, crontab etc.", "warning");
-  drush_log("TODO: maybe rsync db (and files?) from another site alias", "warning");
-  drush_log("TODO: anonymizing live db?", "warning");
-
   // Finally, move it to the site alias root
   // If this is a rebuild, then there will be an existing file root
   if($rebuild) {
